@@ -1,6 +1,7 @@
 const axios = require('axios')
 const ecomUtils = require('@ecomplus/utils')
-
+const { baseUri } = require('./../../../__env')
+const EnivixAxios = require('../../../lib/enivix/create-access')
 exports.post = ({ appSdk }, req, res) => {
   /**
    * Treat `params` and (optionally) `application` from request body to properly mount the `response`.
@@ -34,7 +35,9 @@ exports.post = ({ appSdk }, req, res) => {
     shippingRules = []
   }
 
-  const { zip, tokenProd } = appData
+  const { zip, apikey, token, email, tokenProd } = appData
+
+  const enivixAxios = new EnivixAxios(apikey, token, email, storeId)
 
   if (!params.to) {
     // just a free shipping preview with no shipping address received
@@ -56,7 +59,7 @@ exports.post = ({ appSdk }, req, res) => {
   const destinationZip = params.to ? params.to.zip.replace(/\D/g, '') : ''
   const originZip = params.from
     ? params.from.zip.replace(/\D/g, '')
-    : appData.zip ? appData.zip.replace(/\D/g, '') : ''
+    : zip ? zip.replace(/\D/g, '') : ''
 
   const matchService = (service, name) => {
     const fields = ['service_name', 'service_code']
@@ -103,7 +106,7 @@ exports.post = ({ appSdk }, req, res) => {
   if (params.items) {
     let cartSubtotal = 0
     let finalWeight = 0
-    const skus = []
+    const items = []
     params.items.forEach((item) => {
       const { sku, quantity, weight } = item
       cartSubtotal += (quantity * ecomUtils.price(item))
@@ -135,18 +138,23 @@ exports.post = ({ appSdk }, req, res) => {
       amount: cartSubtotal || params.subtotal,
       items
     }
-    return axios.post(
-      'https://oms.enivix.com.br/api/get/bid',
-      body,
-      {
-        headers: {
-          'Content-type': 'application/json'
+
+    enivixAxios.preparing
+      .then(() => {
+        const { axios } = enivixAxios
+        console.log('> Calculate enivix ', JSON.stringify(body), ' <<')
+        // https://axios-http.com/ptbr/docs/req_config
+        const validateStatus = function (status) {
+          return status >= 200 && status <= 301
         }
-      },
-      {
-        timeout: (params.is_checkout_confirmation ? 8000 : 6000)
-      }
-    )
+        return axios.post('/get/bid', body, { 
+          maxRedirects: 0,
+          validateStatus
+        },
+        {
+          timeout: (params.is_checkout_confirmation ? 8000 : 6000)
+        })
+      })
       .then(result => {
         const { data, status } = result
         if (data && status === 200) {
