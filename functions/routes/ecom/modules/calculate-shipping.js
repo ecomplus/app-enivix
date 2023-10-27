@@ -31,12 +31,12 @@ exports.post = ({ appSdk }, req, res) => {
 
   const enivixAxios = new EnivixAxios(api_key, token, email, storeId)
 
-  if (!params.to) {
+  /* if (!params.to) {
     // just a free shipping preview with no shipping address received
     // respond only with free shipping option
     res.send(response)
     return
-  }
+  } */
 
   if (!tokenProd) {
     // must have configured kangu doc number and token
@@ -229,7 +229,7 @@ exports.post = ({ appSdk }, req, res) => {
             }
           }
 
-          res.send(response)
+          return res.send(response)
         } else {
           // console.log(data)
           const err = new Error('Invalid frete barato calculate response')
