@@ -1,3 +1,6 @@
+const axios = require('axios')
+const ecomUtils = require('@ecomplus/utils')
+
 exports.post = ({ appSdk }, req, res) => {
   /**
    * Treat `params` and (optionally) `application` from request body to properly mount the `response`.
@@ -23,6 +26,16 @@ exports.post = ({ appSdk }, req, res) => {
   if (appData.free_shipping_from_value >= 0) {
     response.free_shipping_from_value = appData.free_shipping_from_value
   }
+
+  let shippingRules
+  if (Array.isArray(appData.shipping_rules) && appData.shipping_rules.length) {
+    shippingRules = appData.shipping_rules
+  } else {
+    shippingRules = []
+  }
+
+  const { zip, tokenProd } = appData
+
   if (!params.to) {
     // just a free shipping preview with no shipping address received
     // respond only with free shipping option
@@ -30,40 +43,238 @@ exports.post = ({ appSdk }, req, res) => {
     return
   }
 
-  /* DO THE STUFF HERE TO FILL RESPONSE OBJECT WITH SHIPPING SERVICES */
-
-  /**
-   * Sample snippets:
-
-  if (params.items) {
-    let totalWeight = 0
-    params.items.forEach(item => {
-      // treat items to ship
-      totalWeight += item.quantity * item.weight.value
+  if (!tokenProd) {
+    // must have configured kangu doc number and token
+    return res.status(409).send({
+      error: 'CALCULATE_AUTH_ERR',
+      message: 'Token or document unset on app hidden data (merchant must configure the app)'
     })
   }
 
-  // add new shipping service option
-  response.shipping_services.push({
-    label: appData.label || 'My shipping method',
-    carrier: 'My carrier',
-    shipping_line: {
-      from: appData.from,
-      to: params.to,
-      package: {
-        weight: {
-          value: totalWeight
-        }
-      },
-      price: 10,
-      delivery_time: {
-        days: 3,
-        working_days: true
+  /* DO THE STUFF HERE TO FILL RESPONSE OBJECT WITH SHIPPING SERVICES */
+
+  const destinationZip = params.to ? params.to.zip.replace(/\D/g, '') : ''
+  const originZip = params.from
+    ? params.from.zip.replace(/\D/g, '')
+    : appData.zip ? appData.zip.replace(/\D/g, '') : ''
+
+  const matchService = (service, name) => {
+    const fields = ['service_name', 'service_code']
+    for (let i = 0; i < fields.length; i++) {
+      if (service[fields[i]]) {
+        return service[fields[i]].trim().toUpperCase() === name.toUpperCase()
       }
     }
-  })
+    return true
+  }
 
-  */
+  const checkZipCode = rule => {
+    // validate rule zip range
+    if (destinationZip && rule.zip_range) {
+      const { min, max } = rule.zip_range
+      return Boolean((!min || destinationZip >= min) && (!max || destinationZip <= max))
+    }
+    return true
+  }
+
+  // search for configured free shipping rule
+  if (Array.isArray(appData.free_shipping_rules)) {
+    for (let i = 0; i < appData.free_shipping_rules.length; i++) {
+      const rule = appData.free_shipping_rules[i]
+      if (rule && checkZipCode(rule) && (rule.min_amount || (rule.product_ids && rule.product_ids.length))) {
+        let hasProduct
+        if (Array.isArray(rule.product_ids) && rule.product_ids.length) {
+          const isAllProducts = rule.all_product_ids
+          hasProduct = isAllProducts
+            ? params.items.every(item => rule.product_ids.indexOf(item.product_id) > -1)
+            : params.items.some(item => rule.product_ids.indexOf(item.product_id) > -1)
+        }
+        if (!rule.min_amount && (!rule.product_ids || hasProduct)) {
+          response.free_shipping_from_value = 0
+          break
+        } else if (!(response.free_shipping_from_value <= rule.min_amount) && (!rule.product_ids || hasProduct)) {
+          response.free_shipping_from_value = rule.min_amount
+        }
+      }
+    }
+  }
+
+
+  if (params.items) {
+    let cartSubtotal = 0
+    let finalWeight = 0
+    const skus = []
+    params.items.forEach((item) => {
+      const { sku, quantity, weight } = item
+      cartSubtotal += (quantity * ecomUtils.price(item))
+      // parse cart items to frete barato schema
+      let kgWeight = 0
+      if (weight && weight.value) {
+        switch (weight.unit) {
+          case 'kg':
+            kgWeight = weight.value * 1000
+            break
+          case 'mg':
+            kgWeight = weight.value / 1000
+            break
+          default:
+            kgWeight = weight.value
+        }
+        finalWeight += finalWeight 
+      }
+      items.push({
+        sku,
+        amount: quantity,
+        weight: kgWeight  
+      })
+    })
+    const body = {
+      auth: tokenProd,
+      to: destinationZip,
+      weight: finalWeight,
+      amount: cartSubtotal || params.subtotal,
+      items
+    }
+    return axios.post(
+      'https://oms.enivix.com.br/api/get/bid',
+      body,
+      {
+        headers: {
+          'Content-type': 'application/json'
+        }
+      },
+      {
+        timeout: (params.is_checkout_confirmation ? 8000 : 6000)
+      }
+    )
+      .then(result => {
+        const { data, status } = result
+        if (data && status === 200) {
+          // success response
+          // parse to E-Com Plus shipping line object
+          const shippingResult = data
+          let lowestPriceShipping
+          shippingResult.forEach(shipping => {
+            const { shipmentCompany, deadline, value } = shipping
+            const price = Number(value)
+            const shippingLine = {
+              from: {
+                ...params.from,
+                zip: originZip
+              },
+              to: params.to,
+              price,
+              total_price: price,
+              discount: 0,
+              delivery_time: {
+                days: parseInt(deadline, 10),
+                working_days: true
+              },
+              posting_deadline: {
+                days: 3,
+                ...appData.posting_deadline
+              },
+              flags: ['enivix-ws', `enivix-${shipmentCompany}`.substr(0, 20)]
+            }
+
+            if (!lowestPriceShipping || lowestPriceShipping.price > price) {
+              lowestPriceShipping = shippingLine
+            }
+
+            // check for default configured additional/discount price
+            if (appData.additional_price) {
+              if (appData.additional_price > 0) {
+                shippingLine.other_additionals = [{
+                  tag: 'additional_price',
+                  label: 'Adicional padrão',
+                  price: appData.additional_price
+                }]
+              } else {
+                // negative additional price to apply discount
+                shippingLine.discount -= appData.additional_price
+              }
+              // update total price
+              shippingLine.total_price += appData.additional_price
+            }
+
+            // change label
+            let label = shipmentCompany
+            if (Array.isArray(appData.services) && appData.services.length) {
+              const service = appData.services.find(service => {
+                return service && matchService(service, label)
+              })
+              if (service && service.label) {
+                label = service.label
+              }
+            }
+            // push shipping service object to response
+            response.shipping_services.push({
+              label,
+              carrier: 'Enivix',
+              service_name: shipmentCompany.toLowerCase().replaceAll(' ','_'),
+              service_code: shipmentCompany.toLowerCase().replaceAll(' ','_'),
+              shipping_line: shippingLine
+            })
+          })
+
+          if (lowestPriceShipping) {
+            const { price } = lowestPriceShipping
+            const discount = typeof response.free_shipping_from_value === 'number' &&
+              response.free_shipping_from_value <= cartSubtotal
+              ? price
+              : 0
+            if (discount) {
+              lowestPriceShipping.total_price = price - discount
+              lowestPriceShipping.discount = discount
+            }
+          }
+
+          res.send(response)
+        } else {
+          // console.log(data)
+          const err = new Error('Invalid frete barato calculate response')
+          err.response = { data, status }
+          throw err
+        }
+      })
+
+      .catch(err => {
+        let { message, response } = err
+        if (response && response.data) {
+          // try to handle Frete Barato error response
+          const { data } = response
+          let result
+          if (typeof data === 'string') {
+            try {
+              result = JSON.parse(data)
+            } catch (e) {
+            }
+          } else {
+            result = data
+          }
+          console.log('> Enivix invalid result:', data)
+          if (result && result.data) {
+            // Frete barato error message
+            return res.status(409).send({
+              error: 'CALCULATE_FAILED',
+              message: result.data
+            })
+          }
+          message = `${message} (${response.status})`
+        } else {
+          console.error(err)
+        }
+        return res.status(409).send({
+          error: 'CALCULATE_ERR',
+          message
+        })
+      })
+  } else {
+    res.status(400).send({
+      error: 'CALCULATE_EMPTY_CART',
+      message: 'Cannot calculate shipping without cart items'
+    })
+  }
 
   res.send(response)
 }
