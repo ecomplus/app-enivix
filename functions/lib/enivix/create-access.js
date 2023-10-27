@@ -1,5 +1,14 @@
 const createAxios = require('./create-axios')
 const auth = require('./create-auth')
+const admin = require('firebase-admin')
+const { setup } = require('@ecomplus/application-sdk')
+
+const getAppSdk = () => {
+  return new Promise(resolve => {
+    setup(null, true, admin.firestore())
+      .then(appSdk => resolve(appSdk))
+  })
+}
 
 const firestoreColl = 'enivix_tokens'
 module.exports = function (apikey, token, email, storeId) {
@@ -23,6 +32,7 @@ module.exports = function (apikey, token, email, storeId) {
       auth(apikey, token, email, storeId)
         .then(async (data) => {
           console.log('> Enivix token => ', data.token)
+          const appSdk = await getAppSdk(admin)
           await appSdk.apiApp(storeId, 'hidden_data', 'PATCH', { tokenProd: data.token }).catch(console.error)
           authenticate()
           if (documentRef) {
