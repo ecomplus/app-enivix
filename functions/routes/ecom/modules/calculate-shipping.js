@@ -157,6 +157,7 @@ exports.post = ({ appSdk }, req, res) => {
       })
       .then(result => {
         const { data, status } = result
+        console.log('Resultado', JSON.stringify(data), status)
         if (data && status === 200) {
           // success response
           // parse to E-Com Plus shipping line object
@@ -245,7 +246,6 @@ exports.post = ({ appSdk }, req, res) => {
           throw err
         }
       })
-
       .catch(err => {
         let { message, response } = err
         if (response && response.data) {
