@@ -31,12 +31,12 @@ exports.post = ({ appSdk }, req, res) => {
 
   const enivixAxios = new EnivixAxios(api_key, token, email, storeId)
 
-  /* if (!params.to) {
+  if (!params.to) {
     // just a free shipping preview with no shipping address received
     // respond only with free shipping option
     res.send(response)
     return
-  } */
+  }
 
   if (!tokenProd) {
     // must have configured kangu doc number and token
@@ -123,6 +123,7 @@ exports.post = ({ appSdk }, req, res) => {
         weight: kgWeight  
       })
     })
+
     const body = {
       auth: tokenProd,
       to: destinationZip,
@@ -130,23 +131,19 @@ exports.post = ({ appSdk }, req, res) => {
       value: cartSubtotal || params.subtotal,
       items
     }
-
-    enivixAxios.preparing
-      .then(() => {
-        const { axios } = enivixAxios
-        console.log('> Calculate enivix ', JSON.stringify(body), ' <<')
-        // https://axios-http.com/ptbr/docs/req_config
-        const validateStatus = function (status) {
-          return status >= 200 && status <= 301
-        }
-        return axios.post('/get/bid', body, { 
-          maxRedirects: 0,
-          validateStatus
+    
+      return axios.post(
+        'https://oms.enivix.com.br/api/get/bid',
+        body,
+        {
+          headers: {
+            'Content-type': 'application/json'
+          }
         },
         {
           timeout: (params.is_checkout_confirmation ? 8000 : 6000)
-        })
-      })
+        }
+      )
       .then(result => {
         const { data, status } = result
         if (data && status === 200) {
