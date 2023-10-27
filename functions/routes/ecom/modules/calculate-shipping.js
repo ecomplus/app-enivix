@@ -111,6 +111,7 @@ exports.post = ({ appSdk }, req, res) => {
       const { sku, quantity, weight } = item
       cartSubtotal += (quantity * ecomUtils.price(item))
       // parse cart items to frete barato schema
+      let kgWeight = 0
       if (weight && weight.value) {
         switch (weight.unit) {
           case 'kg':
@@ -122,7 +123,7 @@ exports.post = ({ appSdk }, req, res) => {
           default:
             kgWeight = weight.value
         }
-        finalWeight += finalWeight 
+        finalWeight += kgWeight 
       }
       items.push({
         sku,
