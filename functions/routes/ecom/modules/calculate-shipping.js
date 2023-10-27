@@ -1,6 +1,5 @@
 const axios = require('axios')
 const ecomUtils = require('@ecomplus/utils')
-const { baseUri } = require('./../../../__env')
 const EnivixAxios = require('../../../lib/enivix/create-access')
 exports.post = ({ appSdk }, req, res) => {
   /**
@@ -26,13 +25,6 @@ exports.post = ({ appSdk }, req, res) => {
 
   if (appData.free_shipping_from_value >= 0) {
     response.free_shipping_from_value = appData.free_shipping_from_value
-  }
-
-  let shippingRules
-  if (Array.isArray(appData.shipping_rules) && appData.shipping_rules.length) {
-    shippingRules = appData.shipping_rules
-  } else {
-    shippingRules = []
   }
 
   const { zip, api_key, token, email, tokenProd } = appData
@@ -237,8 +229,6 @@ exports.post = ({ appSdk }, req, res) => {
             }
           }
 
-
-          console.log('response now', JSON.stringify(response))
           res.send(response)
         } else {
           // console.log(data)
@@ -284,6 +274,7 @@ exports.post = ({ appSdk }, req, res) => {
       message: 'Cannot calculate shipping without cart items'
     })
   }
-
-  res.send(response)
+  if (!res.headersSent) {
+    res.send(response)
+  }
 }
