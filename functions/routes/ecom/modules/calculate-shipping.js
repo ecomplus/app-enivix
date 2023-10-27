@@ -35,9 +35,9 @@ exports.post = ({ appSdk }, req, res) => {
     shippingRules = []
   }
 
-  const { zip, apikey, token, email, tokenProd } = appData
+  const { zip, api_key, token, email, tokenProd } = appData
 
-  const enivixAxios = new EnivixAxios(apikey, token, email, storeId)
+  const enivixAxios = new EnivixAxios(api_key, token, email, storeId)
 
   if (!params.to) {
     // just a free shipping preview with no shipping address received
