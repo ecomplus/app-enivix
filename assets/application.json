@@ -196,6 +196,50 @@
         }
       },
       "hide": false
+    },
+    "unavailable_for": {
+      "schema": {
+        "type": "array",
+        "title": "Desativar serviços",
+        "description": "É possível desabilitar determinados serviços de envio para determinadas faixas de cep ou para todo o Brasil.",
+        "uniqueItems": true,
+        "items": {
+          "type": "object",
+          "required": [
+            "service_name"
+          ],
+          "properties": {
+            "zip_range": {
+              "title": "Faixa de CEP",
+              "type": "object",
+              "required": [
+                "min",
+                "max"
+              ],
+              "properties": {
+                "min": {
+                  "type": "integer",
+                  "minimum": 10000,
+                  "maximum": 999999999,
+                  "title": "CEP inicial"
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 10000,
+                  "maximum": 999999999,
+                  "title": "CEP final"
+                }
+              }
+            },
+            "service_name": {
+              "type": "string",
+              "title": "Serviço",
+              "description": "Nome do serviço que será desabilitado, ex: SEDEX"
+            }
+          }
+        }
+      },
+      "hide": false
     }
   },
   "auth_callback_uri": "https://us-central1-ecom-enivix.cloudfunctions.net/app/ecom/auth-callback",
