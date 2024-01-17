@@ -163,8 +163,8 @@ exports.post = ({ appSdk }, req, res) => {
                 ) {
                   const unavailable = appData.unavailable_for[i]
                   if (
-                    intZipCode >= unavailable.zip_range.min &&
-                    intZipCode <= unavailable.zip_range.max &&
+                    destinationZip >= unavailable.zip_range.min &&
+                    destinationZip <= unavailable.zip_range.max &&
                     matchService(unavailable, shipmentCompany)
                   ) {
                     isAvailable = false
