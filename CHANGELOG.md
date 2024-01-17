@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## 1.0.0 (2024-01-17)
+
+
+### Features
+
+* add auth 02 authentication ([3173f3f](https://github.com/ecomplus/application-starter/commit/3173f3fc7c09a66a0ec9b866260cdba5075f7b9a))
+* add calculate shipping ([685aa88](https://github.com/ecomplus/application-starter/commit/685aa880f5c04defeea70305056b38829b86811b))
+* **ecom-config:** disable shipping method ([9233fc3](https://github.com/ecomplus/application-starter/commit/9233fc34fc0618bbfe8f458d985980a6207ab9ec))
+* **ecom-config:** set config to new app ([c80de32](https://github.com/ecomplus/application-starter/commit/c80de32bfa5697e78152c29a1f85430055d7be41))
+
+
+### Bug Fixes
+
+* **calculate-shipping:** better handling autentication ([6f5cf0b](https://github.com/ecomplus/application-starter/commit/6f5cf0bf377b170f0b0d43fd162441fa73433402))
+* **deps:** update all non-major ([8422220](https://github.com/ecomplus/application-starter/commit/8422220d0f625d1d562e5a43c0bfcfa3e5a2db5b))
+
 ## [1.0.0-starter.26](https://github.com/ecomplus/application-starter/compare/v1.0.0-starter.25...v1.0.0-starter.26) (2022-02-24)
 
 ## [1.0.0-starter.25](https://github.com/ecomplus/application-starter/compare/v1.0.0-starter.24...v1.0.0-starter.25) (2022-02-24)
