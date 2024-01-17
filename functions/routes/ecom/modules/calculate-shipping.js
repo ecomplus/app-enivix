@@ -153,65 +153,87 @@ exports.post = ({ appSdk }, req, res) => {
           let lowestPriceShipping
           shippingResult.forEach(shipping => {
             const { shipmentCompany, deadline, value } = shipping
-            const price = Number(value)
-            const shippingLine = {
-              from: {
-                ...params.from,
-                zip: originZip
-              },
-              to: params.to,
-              price,
-              total_price: price,
-              discount: 0,
-              delivery_time: {
-                days: parseInt(deadline, 10),
-                working_days: true
-              },
-              posting_deadline: {
-                days: 3,
-                ...appData.posting_deadline
-              },
-              flags: ['enivix-ws', `enivix-${shipmentCompany}`.substr(0, 20)]
-            }
-
-            if (!lowestPriceShipping || lowestPriceShipping.price > price) {
-              lowestPriceShipping = shippingLine
-            }
-
-            // check for default configured additional/discount price
-            if (appData.additional_price) {
-              if (appData.additional_price > 0) {
-                shippingLine.other_additionals = [{
-                  tag: 'additional_price',
-                  label: 'Adicional padrão',
-                  price: appData.additional_price
-                }]
-              } else {
-                // negative additional price to apply discount
-                shippingLine.discount -= appData.additional_price
+            // check if service is not disabled
+            let isAvailable = true
+            if (Array.isArray(appData.unavailable_for) && appData.unavailable_for.length) {
+              for (let i = 0; i < appData.unavailable_for.length; i++) {
+                if (
+                  appData.unavailable_for[i] && appData.unavailable_for[i].zip_range &&
+                  appData.unavailable_for[i].service_name
+                ) {
+                  const unavailable = appData.unavailable_for[i]
+                  if (
+                    intZipCode >= unavailable.zip_range.min &&
+                    intZipCode <= unavailable.zip_range.max &&
+                    matchService(unavailable, shipmentCompany)
+                  ) {
+                    isAvailable = false
+                  }
+                }
               }
-              // update total price
-              shippingLine.total_price += appData.additional_price
             }
 
-            // change label
-            let label = shipmentCompany
-            if (Array.isArray(appData.services) && appData.services.length) {
-              const service = appData.services.find(service => {
-                return service && matchService(service, label)
+            if (isAvailable) {
+              const price = Number(value)
+              const shippingLine = {
+                from: {
+                  ...params.from,
+                  zip: originZip
+                },
+                to: params.to,
+                price,
+                total_price: price,
+                discount: 0,
+                delivery_time: {
+                  days: parseInt(deadline, 10),
+                  working_days: true
+                },
+                posting_deadline: {
+                  days: 3,
+                  ...appData.posting_deadline
+                },
+                flags: ['enivix-ws', `enivix-${shipmentCompany}`.substr(0, 20)]
+              }
+  
+              if (!lowestPriceShipping || lowestPriceShipping.price > price) {
+                lowestPriceShipping = shippingLine
+              }
+  
+              // check for default configured additional/discount price
+              if (appData.additional_price) {
+                if (appData.additional_price > 0) {
+                  shippingLine.other_additionals = [{
+                    tag: 'additional_price',
+                    label: 'Adicional padrão',
+                    price: appData.additional_price
+                  }]
+                } else {
+                  // negative additional price to apply discount
+                  shippingLine.discount -= appData.additional_price
+                }
+                // update total price
+                shippingLine.total_price += appData.additional_price
+              }
+  
+              // change label
+              let label = shipmentCompany
+              if (Array.isArray(appData.services) && appData.services.length) {
+                const service = appData.services.find(service => {
+                  return service && matchService(service, label)
+                })
+                if (service && service.label) {
+                  label = service.label
+                }
+              }
+              // push shipping service object to response
+              response.shipping_services.push({
+                label,
+                carrier: 'Enivix',
+                service_name: shipmentCompany.toLowerCase().replaceAll(' ','_'),
+                service_code: shipmentCompany.toLowerCase().replaceAll(' ','_'),
+                shipping_line: shippingLine
               })
-              if (service && service.label) {
-                label = service.label
-              }
             }
-            // push shipping service object to response
-            response.shipping_services.push({
-              label,
-              carrier: 'Enivix',
-              service_name: shipmentCompany.toLowerCase().replaceAll(' ','_'),
-              service_code: shipmentCompany.toLowerCase().replaceAll(' ','_'),
-              shipping_line: shippingLine
-            })
           })
 
           if (lowestPriceShipping) {
