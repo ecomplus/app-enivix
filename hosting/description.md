@@ -1,3 +1,5 @@
-# My Awesome E-Com Plus App
+# Enivix by Platinum log
 
-Somethings about my app and what it does...
+## Somos a solução logística, não somente parte dela.
+
+Desbloqueie o potencial da sua logística com a PlatinumLog. Soluções personalizadas e inovadoras que impulsionam e conectam seu negócio com todo o Brasil.
