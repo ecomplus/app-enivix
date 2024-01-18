@@ -154,6 +154,7 @@ exports.post = ({ appSdk }, req, res) => {
           shippingResult.forEach(shipping => {
             let { shipmentCompany, deadline, value } = shipping
             shipmentCompany = shipmentCompany.replace(/\([^)]*\)/g, '')
+            shipmentCompany = shipmentCompany.trim()
             // check if service is not disabled
             let isAvailable = true
             if (Array.isArray(appData.unavailable_for) && appData.unavailable_for.length) {
